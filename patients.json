@@ -1,0 +1,42 @@
+[
+    {
+      "id": 1,
+      "name": "John Doe",
+      "age": 30,
+      "gender": "M",
+      "language": "English",
+      "city": "New York"
+    },
+    {
+      "id": 2,
+      "name": "Jane Smith",
+      "age": 25,
+      "gender": "F",
+      "language": "Spanish",
+      "city": "Los Angeles"
+    },
+    {
+      "id": 3,
+      "name": "Ravi Kumar",
+      "age": 40,
+      "gender": "M",
+      "language": "Hindi",
+      "city": "Delhi"
+    },
+    {
+      "id": 4,
+      "name": "Amina Yusuf",
+      "age": 33,
+      "gender": "F",
+      "language": "Arabic",
+      "city": "Cairo"
+    },
+    {
+      "id": 5,
+      "name": "Li Wei",
+      "age": 29,
+      "gender": "M",
+      "language": "Mandarin",
+      "city": "Beijing"
+    }
+  ]
