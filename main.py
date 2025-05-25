@@ -1,5 +1,8 @@
 from fastapi import FastAPI,Path, HTTPException
 import json
+from pydantic import BaseModel,Field,computed_field
+from typing import Optional, Annotated,Literal
+from fastapi.responses import JSONResponse
 
 app=FastAPI()
 
@@ -8,6 +11,10 @@ def load_data():
         data=json.load(f)
 
     return data
+
+def save_data(data): # jo bhi data yaha milega usko dump krna h 
+    with open('patients.json','w') as f:
+        json.dump(data,f)
 
 @app.get("/")
 def hello():
@@ -33,3 +40,67 @@ def get_patientId(id:int=Path(..., description="Id of the patient in the db",exa
             return p
     raise HTTPException(status_code=400,detail="Not found.")
       
+class Patient(BaseModel):
+    id:Annotated[int,Field(...,description="Id of the patient",examples=[1])]
+
+    name:str=Field(max_length=50)
+    age:int=Field(gt=0,lt=120)
+
+    gender: Literal["male", "female", "others"]
+    language:Optional[str]
+    city:str
+
+    height:Annotated[float,Field(...,description="Height in meters")]
+
+    weight:Annotated[float,Field(...,description="weight in kgs")]
+
+    @computed_field
+    @property
+    def bmi(self) -> float:
+        bmi_anyname=round(self.weight/(self.height**2),2)
+        return bmi_anyname
+    
+    @computed_field
+    @property
+
+    def verdict_bmi(self)-> str:
+        if self.bmi <18.5:
+            return "Underweight"
+        # elif self.bmi <25:
+        #     return "Normal"
+        elif self.bmi <30:
+            return "Normal"
+        else:
+            return "Obese"
+
+
+@app.post("/create")
+
+def create_patient(patient:Patient): # here patient data is validated as here we do not need to make an object of patient pass the data in the same FastAPI is doing all this for me.{Request bodu se data aya Patient model k pas gaya validate hua }
+
+    # we will load check existing data--
+    patient_id=patient.id
+
+    data=load_data()
+    for i in data:
+        if i["id"]==patient_id:
+            raise HTTPException(status_code=400,detail="Patient already exits")
+        
+    data_dict=(patient.model_dump())
+    data.append(data_dict) # here the data is inserted in the json
+    save_data(data)
+    return JSONResponse(status_code=201,content={"messahe":"patient created👍"})
+    
+    # now load the updated data in json file
+
+
+    # check if the patient already exits---
+    # print(patient.id)
+    # if patient.id in data
+
+    # create new patient in db.
+
+# We will create a new pydantic model as above PAtient pydantic model all feilds are mendatory , we have to make the feilds optional.
+
+
+
