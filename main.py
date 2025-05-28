@@ -50,9 +50,9 @@ class Patient(BaseModel):
     language:Optional[str]
     city:str
 
-    height:Annotated[float,Field(...,description="Height in meters")]
+    height:Annotated[float,Field(...,description="Height in meters",gt=0)]
 
-    weight:Annotated[float,Field(...,description="weight in kgs")]
+    weight:Annotated[float,Field(...,description="weight in kgs",gt=0)]
 
     @computed_field
     @property
@@ -76,7 +76,7 @@ class Patient(BaseModel):
 
 @app.post("/create")
 
-def create_patient(patient:Patient): # here patient data is validated as here we do not need to make an object of patient pass the data in the same FastAPI is doing all this for me.{Request bodu se data aya Patient model k pas gaya validate hua }
+def create_patient(patient:Patient): # here patient data is validated as here we do not need to make an object of patient pass the data in the same FastAPI is doing all this for me.{Request body se data aya Patient model k pas gaya validate hua }
 
     # we will load check existing data--
     patient_id=patient.id
@@ -103,4 +103,57 @@ def create_patient(patient:Patient): # here patient data is validated as here we
 # We will create a new pydantic model as above PAtient pydantic model all feilds are mendatory , we have to make the feilds optional.
 
 
+class PatientUpdate(BaseModel):
+   
+    name: Annotated[Optional[str], Field(description="Full name", max_length=50)] # Annotated is used when you want to add extra metadata or validation (like description, max_length, etc.).  name: Optional[str]
 
+    age:Annotated[Optional[int],Field(gt=0,lt=120,default=None)]
+
+    gender: Annotated[Optional[Literal["male", "female", "others"]],Field(default=None)]
+    language:Optional[str]=None
+    city:Optional[str]=None
+
+    height:Annotated[Optional[float],Field(...,description="Height in meters")]
+
+    weight:Annotated[Optional[float],Field(...,description="weight in kgs")]
+
+
+@app.put("/update/{user_id}")
+def updateUserData(patient:PatientUpdate,user_id:int):
+    
+    found=""
+    data=load_data()
+    for i in data:
+        if i["id"]==user_id:
+            found=True
+            # print(i,"________")
+            print(type(patient))
+            updated_patient_dict=patient.model_dump(exclude_unset=True) # this means that jo feilds aaegi usko hi dega
+            # print(updated_patient_dict)
+            for keys in updated_patient_dict:
+                print(updated_patient_dict[keys])
+                i[keys]=updated_patient_dict[keys]
+            save_data(i)
+            print(data)
+                
+
+            break
+
+    if not found:
+        raise HTTPException(status_code=400,detail="Patient id not found.")
+        # return {"status":False,"message":"Patient id not found."}
+
+@app.delete("/deletePatient/{id}")
+def deletePatient(id:int):
+    data=load_data()
+    found=False
+    for i in data:
+        if i["id"]==id:
+            found=True
+            print(i)
+            data.remove(i)
+            save_data(data)
+            print(data)
+            break
+    if not found:
+        raise HTTPException(status_code=400,detail="Not found")
