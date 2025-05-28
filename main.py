@@ -1,8 +1,12 @@
-from fastapi import FastAPI,Path, HTTPException
+from fastapi import FastAPI,Path, HTTPException,Depends
 import json
 from pydantic import BaseModel,Field,computed_field
 from typing import Optional, Annotated,Literal
 from fastapi.responses import JSONResponse
+
+import models
+from database import engine, SessionLocal
+from sqlalchemy.orm import Session
 
 app=FastAPI()
 
@@ -157,3 +161,51 @@ def deletePatient(id:int):
             break
     if not found:
         raise HTTPException(status_code=400,detail="Not found")
+    
+
+# ---------- Now connection with postgres db-------------
+models.Base.metadata.drop_all(bind=engine)     # 💣 Drops all tables
+models.Base.metadata.create_all(bind=engine) # this line will create all tables,colomns in data base. 
+
+class ChoiceBase(BaseModel):
+    choice_text:Optional[str]
+    is_correct:Optional[bool] =False
+
+class QuestionBase(BaseModel):
+    question_text:Annotated[Optional[str],Field(max_length=200)]
+    choice:Optional[list[ChoiceBase]]
+
+def get_db():
+    db=SessionLocal()
+
+    try:
+        yield db
+    finally:
+        db.close()
+
+db_dependency= Annotated[Session,Depends(get_db)]
+
+@app.post('/questions')
+
+def create_questions(question: QuestionBase, db: db_dependency):
+    print("190")
+    db_question = models.Questions(question_text=question.question_text)
+    print("192")
+    db.add(db_question)
+    print("194")
+    db.commit()
+    print("196")
+    db.refresh(db_question)
+
+    if question.choice:
+        for choice in question.choice:
+            print(choice,"_")
+            db_choice = models.Choices(
+                choice_text=choice.choice_text,
+                is_correct=choice.is_correct,
+                question_id=db_question.id
+            )
+            db.add(db_choice)
+        db.commit()
+
+    return {"message": "Question and choices created successfully"}
