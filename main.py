@@ -293,6 +293,7 @@ class UserCreate(BaseModel):
 @app.post("/create_student",response_model=UserCreate)
 def create_student(db: db_dependency, input_data:UserCreate = Body(...)):
     hashed_password = hash_password(input_data.password)
+
     print("unhashed_password",input_data.password)
     print("hashed_password",hashed_password)
     message=""
