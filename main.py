@@ -1,9 +1,11 @@
 from fastapi import FastAPI,Path, HTTPException,Depends, Body
 import json
-from pydantic import BaseModel,Field,computed_field
+from pydantic import BaseModel,Field,computed_field, EmailStr
 from typing import Optional, Annotated,Literal,List,Union
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from passlib.context import CryptContext
+import re
 
 import models
 from database import engine, SessionLocal
@@ -80,17 +82,17 @@ def hello():
 def about():
     return{"message":"This is about patients project."}
 
-@app.get("/view_patient_data",response_model=Patient) # need to convert List[Patient] when accessing multiple objects {FastAPI is serializing and validating the data returned from your function using the Patient Pydantic model, which turns the data into clean, JSON-compatible output.}
+@app.get("/view_patient_data",response_model=List[Patient]) # need to convert List[Patient] when accessing multiple objects {FastAPI is serializing and validating the data returned from your function using the Patient Pydantic model, which turns the data into clean, JSON-compatible output.}
 
 def patient_data(db: db_dependency):
     try:
-        patients = db.query(models.Patient).first() # returns a SQLAlchemy model instance
+        patients = db.query(models.Patient) # returns a SQLAlchemy model instance
         print(patients)
         # patients_data = [Patient.from_orm(p).dict() for p in patients] # fetching multiple objects we need to convert into list
         #This converts the SQLAlchemy object into a Pydantic model (Patient) which is serializable.
-        patients_data = Patient.from_orm(patients) # when fetching single object 
-        print(patients_data)
-        return patients_data  # FastAPI uses the response_model to serialize
+        # patients_data = Patient.from_orm(patients) # when fetching single object 
+        # print(patients_data)
+        return patients  # FastAPI uses the response_model to serialize
         
     except Exception as e:
         print(str(e))
@@ -266,3 +268,87 @@ def create_questions(question: QuestionBase, db: db_dependency):
         db.commit()
 
     return {"message": "Question and choices created successfully"}
+
+
+#______________ creating student registration _________________________>
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+class UserCreate(BaseModel):
+    # id: int
+    name:str=Field(max_length=50)
+    age:int=Field(gt=0,lt=120)
+    email: Annotated[EmailStr,Field(...,description="Email id of the student")]
+    gender: Literal["male", "female", "others"]
+    phone_number : Annotated[str,Field(..., description="Phone number of the student or gaurdian.")]
+    blood_group : Annotated[str,Field(..., description="Blood group of the student.")]
+    password : Annotated[str,Field(...,description="Password here.")]
+
+    model_config = {
+        "from_attributes": True }
+
+@app.post("/create_student",response_model=UserCreate)
+def create_student(db: db_dependency, input_data:UserCreate = Body(...)):
+    hashed_password = hash_password(input_data.password)
+    print("unhashed_password",input_data.password)
+    print("hashed_password",hashed_password)
+    message=""
+    print(input_data.email,"_________")
+    phone_pattern=re.compile(r"^[6-9]\d{9}$")
+    email_pattern = re.compile(r"^[\w\.-]+@[\w\.-]+\.\w+$")
+
+    if not phone_pattern.match(input_data.phone_number):
+        message="Invalid phone number"
+    if not email_pattern.match(input_data.email):
+        message="Invalid email address"        
+    print(models.User.email,"304")
+    print(input_data.email,"305")                #SQLAlchemy column
+    existing_student=db.query(models.User).filter(models.User.email == input_data.email).first() # this means where 
+
+    if existing_student:
+        message="Student already exits"
+
+    if message:
+        print(message)
+        raise HTTPException(status_code=400,detail=message)
+        
+    print(existing_student,"____+_+_+")
+    new_student=models.User(
+        name=input_data.name,
+        email=input_data.email,
+        age=input_data.age,
+        gender=input_data.gender,
+        phone_number=input_data.phone_number,
+        blood_group=input_data.blood_group,
+        password=hashed_password  # hash if needed
+    )
+    db.add(new_student)
+    db.commit()
+    db.refresh(new_student)
+    return JSONResponse (status_code=201,content="Student registered.")
+
+class UserView(BaseModel):
+    # id: int
+    name:str=Field(max_length=50)
+    age:int=Field(gt=0,lt=120)
+    email: Annotated[EmailStr,Field(...,description="Email id of the student")]
+    gender: Literal["male", "female", "others"]
+    phone_number : Annotated[str,Field(..., description="Phone number of the student or gaurdian.")]
+    blood_group : Annotated[str,Field(..., description="Blood group of the student.")]
+
+    model_config = {
+        "from_attributes": True }
+
+
+@app.get("/view_student",response_model=List[UserView])
+def view_student(db: db_dependency):
+    try:
+        student_instances = db.query(models.User)
+        print(student_instances,"_________________")
+        return student_instances
+    # return JSONResponse(status_code=200,content=student_instances)
+    except Exception as e:
+        raise HTTPException (status_code=500,detail=str(e))
