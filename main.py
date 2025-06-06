@@ -292,7 +292,7 @@ class UserCreate(BaseModel):
     email: Annotated[EmailStr,Field(...,description="Email id of the student")]
     gender: Literal["male", "female", "others"]
     phone_number : Annotated[str,Field(..., description="Phone number of the student or gaurdian.")]
-    blood_group : Annotated[str,Field(..., description="Blood group of the student.")]=""
+    blood_group : Annotated[str,Field(..., description="Blood group of the student.")]= None
     password : Annotated[str,Field(...,description="Password here.")]
 
     model_config = {
@@ -362,7 +362,7 @@ class UserOutDetatils(BaseModel):
     age:int
     gender: Literal["male", "female", "others"]
     phone_number : str
-    blood_group : str
+    blood_group : str | None
 
     model_config = {
         "from_attributes": True }
